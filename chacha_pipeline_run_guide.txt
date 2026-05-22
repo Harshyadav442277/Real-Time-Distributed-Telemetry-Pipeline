@@ -1,0 +1,74 @@
+ChaCha20-Poly1305 two-hop pipeline (PC -> ESP32 -> Server)
+===========================================================
+
+Run-ready files
+---------------
+1) IDE_code/IDE_code.ino
+   - Receives encrypted packet from USB serial
+   - Validates packet format only (no decrypt)
+   - Wrap-encrypts with ESP_TO_SERVER key
+   - Publishes to MQTT broker over mTLS
+
+2) pc_usb_sender.js
+   - Builds a JSON alert payload (schema + seq + timestamp)
+   - Encrypts JSON with PC_TO_ESP_KEY_HEX
+   - Sends one line packet to ESP32 over USB serial
+
+3) server_chacha.js
+   - Runs an mTLS MQTT broker on port 4433
+   - Decrypts ESP->Server layer with ESP_TO_SERVER_KEY_HEX
+   - Decrypts PC->ESP layer with PC_TO_ESP_KEY_HEX
+   - Validates JSON schema, seq, timestamp, and rate limits
+
+
+Key setup (PowerShell)
+----------------------
+Each key must be 64 hex chars (32 bytes). Use these same values in:
+- PowerShell env vars for Node scripts
+- IDE_code/IDE_code.ino key hex constants
+
+$env:PC_TO_ESP_KEY_HEX="00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+$env:ESP_TO_SERVER_KEY_HEX="ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100"
+$env:ALLOWED_CLIENT_ID_PREFIXES="esp32-"
+$env:DEVICE_ID="esp32-lab-001"
+
+
+Packet format
+-------------
+v1|nonce_base64|ciphertext_base64|tag_base64
+
+Algorithm in code:
+chacha20-poly1305
+
+
+Run order
+---------
+1) Upload firmware:
+- Open IDE_code/IDE_code.ino in Arduino IDE
+- Verify tunnel_host and tunnel_port are current ngrok values
+- Verify key constants match env vars above
+- Upload to ESP32
+
+2) Start MQTT broker with keys and allowlist:
+npm run start:chacha
+
+3) Start ngrok:
+ngrok tcp 4433
+
+4) Update firmware tunnel_port if ngrok gave a new port, then re-upload.
+
+5) Send encrypted message from PC to ESP32 over USB:
+$env:DEVICE_ID="esp32-lab-001"
+npm run send:usb -- COM5 "hello from pc"
+
+
+Expected logs
+-------------
+ESP32 serial monitor:
+- [PIPELINE] Packet received from USB.
+- [PIPELINE] Wrapped for server. Sending via MQTT...
+- [PIPELINE] Published to broker.
+
+Server terminal:
+- [MQTT CONNECT] Client id: esp32-...
+- [SUCCESS] MQTT + double decrypt OK
