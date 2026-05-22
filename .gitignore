@@ -1,8 +1,24 @@
-# Secrets and keys
-server-key.pem
-secrets/
-.env
+# Node
+node_modules/
+
+# Local state
 .sender_state.json
+
+# Env files
+.env
+.env.*
+
+# Secrets folder (keep keys/certs outside the repo when possible)
+secrets/
+
+# Private keys / CSRs / serial files (never commit these)
+*.key
+*-key.pem
+*-req.pem
+*.csr
+*.srl
+*.p12
+*.pfx
 
 # Logs
 *.log
