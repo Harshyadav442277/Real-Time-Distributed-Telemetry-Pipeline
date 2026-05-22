@@ -1,0 +1,8 @@
+# Secrets and keys
+server-key.pem
+secrets/
+.env
+.sender_state.json
+
+# Logs
+*.log
